@@ -4,34 +4,22 @@
 let player
 
 function onYouTubeIframeAPIReady() {
+    // Solo le decimos que se "enganche" al iframe que ya está en el HTML
     player = new YT.Player('reproductor', {
-        height: '100%',
-        width: '100%',
-        videoId: 'jfKfPfyJRdk', 
-        playerVars: {
-            'autoplay': 1,      
-            'controls': 0,     
-            'disablekb': 1,     
-            'fs': 0,            
-            'mute': 1,         
-            'origin': 'https://www.youtube.com',
-            'cc_load_policy': 0,  // Fuerza a apagar los subtítulos
-            'iv_load_policy': 3   // Oculta las tarjetas interactivas
-        },
         events: {
             'onStateChange': function(event) {
-                // Si está reproduciendo (1), matamos los subtítulos a la fuerza
+                // Matamos los subtítulos cuando empieza (Estado 1)
                 if (event.data === 1 && typeof player.unloadModule === 'function') {
-                    player.unloadModule('captions')
-                    player.unloadModule('cc')
+                    player.unloadModule('captions');
+                    player.unloadModule('cc');
                 }
-                // Si el video terminó (0), pasamos al siguiente automáticamente
+                // Pasamos al siguiente video si termina (Estado 0)
                 if (event.data === 0) { 
-                    player.nextVideo() 
+                    player.nextVideo(); 
                 }
             }
         }
-    })
+    });
 }
 
 // Nueva función inteligente que detecta si es un video suelto o una Playlist
