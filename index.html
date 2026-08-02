@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Truco & Play</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 1/4 Izquierda: Anotador de Truco -->
+        <div class="anotador-panel">
+            <h1>Anotador</h1>
+            
+            <!-- Contenedor crucial para alinear los equipos -->
+            <div class="tabla-truco">
+                <div class="equipo" id="equipo-nosotros">
+                    <h2>Nosotros</h2>
+                    <div class="puntos" id="puntos-nosotros">0</div>
+                </div>
+                
+                <div class="linea-divisoria"></div>
+                
+                <div class="equipo" id="equipo-ellos">
+                    <h2>Ellos</h2>
+                    <div class="puntos" id="puntos-ellos">0</div>
+                </div> <!-- Este es el div que faltaba cerrar -->
+            </div>
+            
+            <p class="ayuda">Usa las flechas para sumar/restar</p>
+              <div class="controles-ayuda">
+                <h3>Controles</h3>
+                <ul>
+                    <li><span>Flechas:</span> Mover y Sumar/Restar</li>
+                    <li><span>OK (Enter):</span> Pausa / Play</li>
+                    <li><span>Botón 0 / Azul:</span> Cambiar Video</li>
+                    <li><span>Botón 1 / CH+:</span> Siguiente Video</li>
+                    <li><span>Atrás (ESC):</span> Cerrar Ventanas</li>
+                </ul>
+            </div>
+        </div>
+        <div class="video-panel">
+            <div id="reproductor"></div>
+        </div>
+        
+    <div id="modal-video" class="modal oculto">
+            <div class="modal-contenido">
+                <h2>Cambiar Video</h2>
+                <p>Ingresa el ID o enlace de YouTube:</p>
+                <input type="text" id="input-video" placeholder="Ej: y3WGp_ZEGUo">
+                <p class="ayuda">Usa el puntero para escribir y presiona OK (Enter)</p>
+            </div>
+        </div>
+        <div id="modal-reinicio" class="modal oculto">
+            <div class="modal-contenido">
+                <h2 id="texto-ganador">¡Terminó el partido!</h2>
+                <p>¿Quieren reiniciar los puntos a 0?</p>
+                <p class="ayuda">Presiona OK para reiniciar, o Atrás para cancelar</p>
+            </div>
+        </div>
+      
+    </div>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="app.js"></script>
+</body>
+</html>

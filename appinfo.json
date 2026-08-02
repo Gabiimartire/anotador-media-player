@@ -1,0 +1,12 @@
+{
+  "id": "com.tudominio.trucoplay",
+  "version": "1.0.0",
+  "vendor": "Tu Nombre",
+  "type": "web",
+  "main": "index.html",
+  "title": "Truco & Play",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgColor": "#121212",
+  "resolution": "1920x1080"
+}
