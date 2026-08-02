@@ -1,12 +1,12 @@
 {
   "id": "com.tudominio.trucoplay",
   "version": "1.0.0",
-  "vendor": "Tu Nombre",
+  "vendor": "Gabrie Mártire",
   "type": "web",
   "main": "index.html",
-  "title": "Truco & Play",
+  "title": "Truco & MediaPlayer",
   "icon": "icon.png",
-  "largeIcon": "largeIcon.png",
+  "largeIcon": "icon.png",
   "bgColor": "#121212",
   "resolution": "1920x1080"
 }
