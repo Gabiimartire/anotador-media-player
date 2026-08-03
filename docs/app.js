@@ -27,50 +27,60 @@ function onYouTubeIframeAPIReady() {
 }
 
 function sincronizarVideoActual() {
-    if (player && typeof player.getPlaylist === 'function') {
-        let lista = player.getPlaylist()
-        if (lista && lista.length > 0) {
-            videoActualId = lista[player.getPlaylistIndex()]
+    if (player && typeof player.getVideoUrl === 'function') {
+        let url = player.getVideoUrl()
+        let match = url && url.match(/[?&]v=([a-zA-Z0-9_-]{11})/)
+        if (match) videoActualId = match[1]
+    }
+}
+
+function intentarSiguienteOBuscarRelacionado() {
+    if (!player) return
+    player.nextVideo()
+    // Le damos 1.5 segundos: si no arrancó nada nuevo (no está "playing" ni "buffering"),
+    // es porque no había siguiente de verdad — ahí recién buscamos uno relacionado
+    setTimeout(function() {
+        let estado = player.getPlayerState()
+        if (estado !== 1 && estado !== 3) {
+            buscarVideoRelacionado()
         }
-    }
+    }, 1500)
 }
-
-function haySiguiente() {
-    if (!player || typeof player.getPlaylist !== 'function') return false
-    let lista = player.getPlaylist()
-    if (!lista || lista.length === 0) return false
-    return player.getPlaylistIndex() < lista.length - 1
-}
-
-function avanzarOBuscarRelacionado() {
-    if (haySiguiente()) {
-        player.nextVideo()
-    } else {
-        buscarVideoRelacionado()
-    }
-}
-
 async function buscarVideoRelacionado() {
-    if (!videoActualId || !YT_API_KEY) return
+    if (!videoActualId || !YT_API_KEY) { reiniciarComoUltimoRecurso(); return }
     try {
         let resVideo = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoActualId}&key=${YT_API_KEY}`)
         let dataVideo = await resVideo.json()
         let titulo = dataVideo.items && dataVideo.items[0] && dataVideo.items[0].snippet.title
-        if (!titulo) return
+        if (!titulo) { reiniciarComoUltimoRecurso(); return }
 
         let resBusqueda = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=8&q=${encodeURIComponent(titulo)}&key=${YT_API_KEY}`)
         let dataBusqueda = await resBusqueda.json()
+
+        if (dataBusqueda.error) {
+            console.warn('YouTube API sin cuota por hoy:', dataBusqueda.error.message)
+            reiniciarComoUltimoRecurso()
+            return
+        }
+
         let candidatos = (dataBusqueda.items || [])
             .map(item => item.id.videoId)
             .filter(id => id && id !== videoActualId)
 
-        if (candidatos.length === 0) return
+        if (candidatos.length === 0) { reiniciarComoUltimoRecurso(); return }
 
         let elegido = candidatos[Math.floor(Math.random() * candidatos.length)]
         player.loadVideoById(elegido)
         videoActualId = elegido
     } catch (e) {
         console.error('No se pudo buscar un video relacionado:', e)
+        reiniciarComoUltimoRecurso()
+    }
+}
+
+function reiniciarComoUltimoRecurso() {
+    if (player && videoActualId && typeof player.loadVideoById === 'function') {
+        player.loadVideoById(videoActualId)
     }
 }
 
@@ -241,9 +251,7 @@ document.addEventListener('keydown', function(event) {
         case 49:
         case 97:
         case 427:
-            if (player) {
-                avanzarOBuscarRelacionado()
-            }
+            intentarSiguienteOBuscarRelacionado()
             break
 
         case 50:
