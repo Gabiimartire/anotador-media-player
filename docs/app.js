@@ -6,6 +6,7 @@ let player
 // --- Config de YouTube Data API (para buscar un video relacionado si no hay "siguiente") ---
 const YT_API_KEY = 'AIzaSyA-27uzeSv3ZfHLWXxq4Bb0u9FpDhRCKsQ'
 let videoActualId = null
+let intentosRelacionado = 0
 
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('reproductor', {
@@ -17,10 +18,15 @@ function onYouTubeIframeAPIReady() {
                 }
                 if (event.data === 1) {
                     sincronizarVideoActual()
+                    intentosRelacionado = 0
                 }
                 if (event.data === 0) { 
-                    avanzarOBuscarRelacionado()
+                    intentarSiguienteOBuscarRelacionado()
                 }
+            },
+            'onError': function(event) {
+                console.warn('No se pudo reproducir ese contenido (código ' + event.data + '), buscando otra opción...')
+                buscarVideoRelacionado()
             }
         }
     });
@@ -47,22 +53,43 @@ function intentarSiguienteOBuscarRelacionado() {
     }, 1500)
 }
 async function buscarVideoRelacionado() {
+    // Frenamos si esto ya reintentó varias veces seguidas sin éxito (evita gastar toda la cuota de una)
+    if (intentosRelacionado >= 3) {
+        intentosRelacionado = 0
+        reiniciarComoUltimoRecurso()
+        return
+    }
+    intentosRelacionado++
+
     if (!videoActualId || !YT_API_KEY) { reiniciarComoUltimoRecurso(); return }
+
     try {
         let resVideo = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoActualId}&key=${YT_API_KEY}`)
         let dataVideo = await resVideo.json()
         let titulo = dataVideo.items && dataVideo.items[0] && dataVideo.items[0].snippet.title
         if (!titulo) { reiniciarComoUltimoRecurso(); return }
 
-        let resBusqueda = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=8&q=${encodeURIComponent(titulo)}&key=${YT_API_KEY}`)
-        let dataBusqueda = await resBusqueda.json()
+        // 1. Buscamos primero una PLAYLIST relacionada (así después hay "siguientes" de verdad)
+        let resPlaylist = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=playlist&maxResults=5&q=${encodeURIComponent(titulo)}&key=${YT_API_KEY}`)
+        let dataPlaylist = await resPlaylist.json()
 
-        if (dataBusqueda.error) {
-            console.warn('YouTube API sin cuota por hoy:', dataBusqueda.error.message)
+        if (dataPlaylist.error) {
+            console.warn('YouTube API sin cuota por hoy:', dataPlaylist.error.message)
             reiniciarComoUltimoRecurso()
             return
         }
 
+        let playlists = (dataPlaylist.items || []).map(item => item.id.playlistId).filter(Boolean)
+
+        if (playlists.length > 0) {
+            let listaElegida = playlists[Math.floor(Math.random() * playlists.length)]
+            player.loadPlaylist({ list: listaElegida, listType: 'playlist', index: 0 })
+            return
+        }
+
+        // 2. Si no encontramos ninguna playlist, buscamos al menos un video suelto
+        let resBusqueda = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=8&q=${encodeURIComponent(titulo)}&key=${YT_API_KEY}`)
+        let dataBusqueda = await resBusqueda.json()
         let candidatos = (dataBusqueda.items || [])
             .map(item => item.id.videoId)
             .filter(id => id && id !== videoActualId)
@@ -73,7 +100,7 @@ async function buscarVideoRelacionado() {
         player.loadVideoById(elegido)
         videoActualId = elegido
     } catch (e) {
-        console.error('No se pudo buscar un video relacionado:', e)
+        console.error('No se pudo buscar contenido relacionado:', e)
         reiniciarComoUltimoRecurso()
     }
 }
