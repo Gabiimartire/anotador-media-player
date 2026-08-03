@@ -1,0 +1,11 @@
+{
+  "id": "com.gabriel.trucoplayer",
+  "version": "1.0.1",
+  "vendor": "Gabriel Mártire",
+  "type": "web",
+  "main": "index.html",
+  "title": "Truco & Play",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "disableBackHistoryAPI": true
+}

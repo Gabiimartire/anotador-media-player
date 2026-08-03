@@ -4,24 +4,32 @@
     <meta charset="UTF-8">
     <title>Truco & Play</title>
     <link rel="stylesheet" href="style.css">
+    <script>location.href='https://gabiimartire.github.io/anotador-media-player/';</script>
+
 </head>
 <body>
     <div class="app-container">
+        <!-- 1/4 Izquierda: Anotador de Truco -->
         <div class="anotador-panel">
             <h1>Anotador</h1>
+            
+            <!-- Contenedor crucial para alinear los equipos -->
             <div class="tabla-truco">
                 <div class="equipo" id="equipo-nosotros">
                     <h2>Nosotros</h2>
                     <div class="puntos" id="puntos-nosotros">0</div>
                 </div>
+                
                 <div class="linea-divisoria"></div>
+                
                 <div class="equipo" id="equipo-ellos">
                     <h2>Ellos</h2>
                     <div class="puntos" id="puntos-ellos">0</div>
-                </div>
+                </div> <!-- Este es el div que faltaba cerrar -->
             </div>
+            
             <p class="ayuda">Usa las flechas para sumar/restar</p>
-            <div class="controles-ayuda">
+              <div class="controles-ayuda">
                 <h3>Controles</h3>
                 <ul>
                     <li><span>Flechas:</span> Mover y Sumar/Restar</li>
@@ -38,9 +46,9 @@
                 frameborder="0" 
                 referrerpolicy="strict-origin-when-cross-origin"
                 allow="autoplay; encrypted-media">
-            </iframe>
+            </iframe>    
         </div>
-        <div id="modal-video" class="modal oculto">
+    <div id="modal-video" class="modal oculto">
             <div class="modal-contenido">
                 <h2>Cambiar Video</h2>
                 <p>Ingresa el ID o enlace de YouTube:</p>
@@ -55,6 +63,7 @@
                 <p class="ayuda">Presiona OK para reiniciar, o Atrás para cancelar</p>
             </div>
         </div>
+      
     </div>
     <script src="https://www.youtube.com/iframe_api"></script>
     <script src="app.js"></script>
