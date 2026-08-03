@@ -116,22 +116,21 @@ document.addEventListener('keydown', function(event) {
     if (estadoApp === 'modal-video') {
         if (event.keyCode === 13) { // OK
             let extraido = extraerVideoId(inputVideo.value)
-            
             if (extraido && player) {
-                // Si encontramos una Lista, cargamos la Playlist entera (¡Esto arregla el Next!)
-                if (extraido.listId && typeof player.loadPlaylist === 'function') {
-                    player.loadPlaylist({
-                        list: extraido.listId,
-                        listType: 'playlist',
-                        index: 0
-                    })
-                } 
-                // Si no hay lista, cargamos el video individual
-                else if (extraido.videoId && typeof player.loadVideoById === 'function') {
-                    player.loadVideoById(extraido.videoId)
-                }
+            // "RD..." es un mix automático que YouTube pega solo, no una playlist elegida a propósito
+            let esListaReal = extraido.listId && !extraido.listId.startsWith('RD')
+
+            if (esListaReal && typeof player.loadPlaylist === 'function') {
+                player.loadPlaylist({
+                    list: extraido.listId,
+                    listType: 'playlist',
+                    index: 0
+                })
+            } 
+            else if (extraido.videoId && typeof player.loadVideoById === 'function') {
+                player.loadVideoById(extraido.videoId)
             }
-            
+        }
             modalVideo.classList.add('oculto')
             estadoApp = 'jugando'
             inputVideo.blur() 
