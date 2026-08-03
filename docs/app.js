@@ -3,35 +3,84 @@
 // --- 1. LÓGICA DEL REPRODUCTOR DE YOUTUBE ---
 let player
 
+// --- Config de YouTube Data API (para buscar un video relacionado si no hay "siguiente") ---
+const YT_API_KEY = 'AIzaSyA-27uzeSv3ZfHLWXxq4Bb0u9FpDhRCKsQ'
+let videoActualId = null
+
 function onYouTubeIframeAPIReady() {
-    // Solo le decimos que se "enganche" al iframe que ya está en el HTML
     player = new YT.Player('reproductor', {
         events: {
             'onStateChange': function(event) {
-                // Matamos los subtítulos cuando empieza (Estado 1)
                 if (event.data === 1 && typeof player.unloadModule === 'function') {
                     player.unloadModule('captions');
                     player.unloadModule('cc');
                 }
-                // Pasamos al siguiente video si termina (Estado 0)
+                if (event.data === 1) {
+                    sincronizarVideoActual()
+                }
                 if (event.data === 0) { 
-                    player.nextVideo(); 
+                    avanzarOBuscarRelacionado()
                 }
             }
         }
     });
 }
 
-// Nueva función inteligente que detecta si es un video suelto o una Playlist
+function sincronizarVideoActual() {
+    if (player && typeof player.getPlaylist === 'function') {
+        let lista = player.getPlaylist()
+        if (lista && lista.length > 0) {
+            videoActualId = lista[player.getPlaylistIndex()]
+        }
+    }
+}
+
+function haySiguiente() {
+    if (!player || typeof player.getPlaylist !== 'function') return false
+    let lista = player.getPlaylist()
+    if (!lista || lista.length === 0) return false
+    return player.getPlaylistIndex() < lista.length - 1
+}
+
+function avanzarOBuscarRelacionado() {
+    if (haySiguiente()) {
+        player.nextVideo()
+    } else {
+        buscarVideoRelacionado()
+    }
+}
+
+async function buscarVideoRelacionado() {
+    if (!videoActualId || !YT_API_KEY) return
+    try {
+        let resVideo = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoActualId}&key=${YT_API_KEY}`)
+        let dataVideo = await resVideo.json()
+        let titulo = dataVideo.items && dataVideo.items[0] && dataVideo.items[0].snippet.title
+        if (!titulo) return
+
+        let resBusqueda = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=8&q=${encodeURIComponent(titulo)}&key=${YT_API_KEY}`)
+        let dataBusqueda = await resBusqueda.json()
+        let candidatos = (dataBusqueda.items || [])
+            .map(item => item.id.videoId)
+            .filter(id => id && id !== videoActualId)
+
+        if (candidatos.length === 0) return
+
+        let elegido = candidatos[Math.floor(Math.random() * candidatos.length)]
+        player.loadVideoById(elegido)
+        videoActualId = elegido
+    } catch (e) {
+        console.error('No se pudo buscar un video relacionado:', e)
+    }
+}
+
 function extraerVideoId(input) {
     if (!input) return null
     let resultado = { videoId: null, listId: null }
 
-    // Buscamos si el enlace tiene una lista (ej: list=PLx0sYb...)
     let matchList = input.match(/[?&]list=([^#\&\?]+)/)
     if (matchList) resultado.listId = matchList[1]
 
-    // Buscamos el ID normal del video
     if (/^[a-zA-Z0-9_-]{11}$/.test(input.trim())) {
         resultado.videoId = input.trim()
     } else {
@@ -97,44 +146,44 @@ function verificarGanador() {
 // --- 3. ESCUCHA DEL CONTROL REMOTO ---
 document.addEventListener('keydown', function(event) {
     
-    // --- VENTANA DE REINICIO ---
     if (estadoApp === 'modal-reinicio') {
-        if (event.keyCode === 13) { // OK
+        if (event.keyCode === 13) {
             ptsNosotros = 0
             ptsEllos = 0
             actualizarUI()
             modalReinicio.classList.add('oculto')
             estadoApp = 'jugando'
-        } else if (event.keyCode === 461 || event.keyCode === 27) { // Atrás o ESC
+        } else if (event.keyCode === 461 || event.keyCode === 27) {
             modalReinicio.classList.add('oculto')
             estadoApp = 'jugando'
         }
         return 
     }
 
-    // --- VENTANA DE CAMBIAR VIDEO ---
     if (estadoApp === 'modal-video') {
-        if (event.keyCode === 13) { // OK
+        if (event.keyCode === 13) {
             let extraido = extraerVideoId(inputVideo.value)
+            
             if (extraido && player) {
-            // "RD..." es un mix automático que YouTube pega solo, no una playlist elegida a propósito
-            let esListaReal = extraido.listId && !extraido.listId.startsWith('RD')
+                let esListaReal = extraido.listId && !extraido.listId.startsWith('RD')
 
-            if (esListaReal && typeof player.loadPlaylist === 'function') {
-                player.loadPlaylist({
-                    list: extraido.listId,
-                    listType: 'playlist',
-                    index: 0
-                })
-            } 
-            else if (extraido.videoId && typeof player.loadVideoById === 'function') {
-                player.loadVideoById(extraido.videoId)
+                if (esListaReal && typeof player.loadPlaylist === 'function') {
+                    player.loadPlaylist({
+                        list: extraido.listId,
+                        listType: 'playlist',
+                        index: 0
+                    })
+                } 
+                else if (extraido.videoId && typeof player.loadVideoById === 'function') {
+                    player.loadVideoById(extraido.videoId)
+                    videoActualId = extraido.videoId
+                }
             }
-        }
+            
             modalVideo.classList.add('oculto')
             estadoApp = 'jugando'
             inputVideo.blur() 
-        } else if (event.keyCode === 461 || event.keyCode === 27) { // Atrás o ESC
+        } else if (event.keyCode === 461 || event.keyCode === 27) {
             modalVideo.classList.add('oculto')
             estadoApp = 'jugando'
             inputVideo.blur()
@@ -142,32 +191,31 @@ document.addEventListener('keydown', function(event) {
         return 
     }
 
-    // --- CONTROLES NORMALES (JUGANDO) ---
     switch(event.keyCode) {
-        case 37: // Izquierda
+        case 37:
             equipoSeleccionado = 'nosotros'
             actualizarUI()
             break
             
-        case 39: // Derecha
+        case 39:
             equipoSeleccionado = 'ellos'
             actualizarUI()
             break
             
-        case 38: // Arriba
+        case 38:
             if (equipoSeleccionado === 'nosotros' && ptsNosotros < 30) ptsNosotros++
             if (equipoSeleccionado === 'ellos' && ptsEllos < 30) ptsEllos++
             actualizarUI()
             verificarGanador()
             break
             
-        case 40: // Abajo
+        case 40:
             if (equipoSeleccionado === 'nosotros' && ptsNosotros > 0) ptsNosotros--
             if (equipoSeleccionado === 'ellos' && ptsEllos > 0) ptsEllos--
             actualizarUI()
             break
             
-        case 13: // Botón OK / Enter (Pausar/Play)
+        case 13:
             if (player && typeof player.getPlayerState === 'function') {
                 if (player.isMuted()) {
                     player.unMute()
@@ -181,32 +229,40 @@ document.addEventListener('keydown', function(event) {
             }
             break
 
-        case 48:  // Tecla '0'
-        case 96:  // Numpad '0'
-        case 406: // Botón AZUL LG
+        case 48:
+        case 96:
+        case 406:
             estadoApp = 'modal-video'
             modalVideo.classList.remove('oculto')
             inputVideo.value = '' 
             inputVideo.focus() 
             break
 
-        case 49:  // Tecla '1'
-        case 97:  // Numpad '1'
-        case 427: // Botón "Channel Up" / "Next" LG
-            if (player && typeof player.nextVideo === 'function') {
-                player.nextVideo()
+        case 49:
+        case 97:
+        case 427:
+            if (player) {
+                avanzarOBuscarRelacionado()
             }
             break
-            case 461: // Atrás LG
-        case 27:  // ESC
-        if (typeof webOS !== 'undefined' && webOS.platformBack) {
-            webOS.platformBack() // cierra la app correctamente
-        }
-        break
-        }
- 
+
+        case 50:
+        case 98:
+        case 428:
+            if (player && typeof player.previousVideo === 'function') {
+                player.previousVideo()
+            }
+            break
+
+        case 461:
+        case 27:
+            if (typeof webOS !== 'undefined' && webOS.platformBack) {
+                webOS.platformBack()
+            }
+            break
+    }
 })
-// Arrancar la interfaz
+
 function guardar() {
     localStorage.setItem('truco', JSON.stringify({ptsNosotros, ptsEllos}))
 }
